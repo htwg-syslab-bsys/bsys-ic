@@ -7,7 +7,8 @@ Betriebssysteme (OSTEP): Hier liegen die Dateien, die in einer IC-Stunde am eige
 Im bsyslab-Container:
 
 ```
-curl -fsSL https://raw.githubusercontent.com/htwg-syslab-bsys/bsys-ic/main/install.sh -o /tmp/ic-install.sh && sh /tmp/ic-install.sh
+curl -fsSLo /tmp/ic-install.sh https://raw.githubusercontent.com/htwg-syslab-bsys/bsys-ic/main/install.sh
+sh /tmp/ic-install.sh
 ```
 
 ## In der Stunde

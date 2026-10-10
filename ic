@@ -16,7 +16,7 @@ set -euo pipefail
 
 IC_VERSION=1
 URL="https://codeload.github.com/htwg-syslab-bsys/bsys-ic/tar.gz/refs/heads/main"
-INSTALL_ZEILE="curl -fsSL https://raw.githubusercontent.com/htwg-syslab-bsys/bsys-ic/main/install.sh -o /tmp/ic-install.sh && sh /tmp/ic-install.sh"
+INSTALL_ZEILE="curl -fsSLo /tmp/ic-install.sh https://raw.githubusercontent.com/htwg-syslab-bsys/bsys-ic/main/install.sh && sh /tmp/ic-install.sh"
 PROGRAMM="${IC_PROGRAMM:-/usr/local/bin/ic}"   # Installationsort (anderer Ort nur zum Testen)
 IC_DIR="$HOME/ic"
 
