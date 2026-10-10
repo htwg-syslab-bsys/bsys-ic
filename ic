@@ -8,13 +8,17 @@
 # Eigene Änderungen werden nie überschrieben: ~/ic/.original/T<n>/ hält die zuletzt
 # gelieferte Fassung. Nur unveränderte Dateien werden ersetzt; zu einer geänderten Datei
 # kommt die neue Fassung als DATEI.neu daneben.
+#
+# Selbst-Update: Nur ein Stand aus dem Netz (nicht --quelle) darf ic selbst ersetzen, und nur
+# wenn die mitgelieferte Fassung ein bash-Skript ist (erste Zeile #!…bash) und bash -n sie
+# fehlerfrei liest; sonst bleibt die installierte Fassung.
 set -euo pipefail
 
 # Das ganze Skript steht in { … }: bash liest es vollständig, bevor es läuft — so stört
 # es nicht, wenn sich ic unten selbst ersetzt.
 {
 
-IC_VERSION=1
+IC_VERSION=2
 URL="https://codeload.github.com/htwg-syslab-bsys/bsys-ic/tar.gz/refs/heads/main"
 INSTALL_ZEILE="curl -fsSLo /tmp/ic-install.sh https://raw.githubusercontent.com/htwg-syslab-bsys/bsys-ic/main/install.sh && sh /tmp/ic-install.sh"
 PROGRAMM="${IC_PROGRAMM:-/usr/local/bin/ic}"   # Installationsort (anderer Ort nur zum Testen)
@@ -149,8 +153,18 @@ src="$wurzel/$termin"
 [ -d "$src" ] || fehler "Für $termin liegt noch nichts vor. Verfügbar: ${termine:-keine}"
 
 # ---------------------------------------------------------------- ic selbst aktuell halten
-if [ -f "$wurzel/ic" ] && ! cmp -s "$wurzel/ic" "$PROGRAMM" 2>/dev/null; then
-    if [ -w "$(dirname "$PROGRAMM")" ] && install -m 755 "$wurzel/ic" "$PROGRAMM" 2>/dev/null; then
+# brauchbar DATEI — erste Zeile #!…bash und bash -n ohne Fehler
+brauchbar() {
+    local erste
+    erste=$(head -n 1 "$1" 2>/dev/null) || return 1
+    case "$erste" in '#!'*bash*) ;; *) return 1 ;; esac
+    bash -n "$1" 2>/dev/null
+}
+# nur mit einem Stand aus dem Netz — eine lokale Quelle (--quelle) ersetzt ic nie
+if [ -z "$quelle" ] && [ -f "$wurzel/ic" ] && ! cmp -s "$wurzel/ic" "$PROGRAMM" 2>/dev/null; then
+    if ! brauchbar "$wurzel/ic"; then
+        echo "Hinweis: Die mitgelieferte Fassung von ic ist unbrauchbar; installierte Fassung bleibt."
+    elif [ -w "$(dirname "$PROGRAMM")" ] && install -m 755 "$wurzel/ic" "$PROGRAMM" 2>/dev/null; then
         echo "ic wurde auf den neuen Stand gebracht ($PROGRAMM)."
     elif command -v sudo >/dev/null 2>&1 && sudo -n install -m 755 "$wurzel/ic" "$PROGRAMM" 2>/dev/null; then
         echo "ic wurde auf den neuen Stand gebracht ($PROGRAMM)."
