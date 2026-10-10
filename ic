@@ -153,11 +153,11 @@ src="$wurzel/$termin"
 [ -d "$src" ] || fehler "Für $termin liegt noch nichts vor. Verfügbar: ${termine:-keine}"
 
 # ---------------------------------------------------------------- ic selbst aktuell halten
-# brauchbar DATEI — erste Zeile #!…bash und bash -n ohne Fehler
+# brauchbar DATEI — bekannter bash-Shebang und bash -n ohne Fehler
 brauchbar() {
     local erste
     erste=$(head -n 1 "$1" 2>/dev/null) || return 1
-    case "$erste" in '#!'*bash*) ;; *) return 1 ;; esac
+    case "$erste" in '#!/usr/bin/env bash'|'#!/bin/bash'|'#!/usr/bin/bash') ;; *) return 1 ;; esac
     bash -n "$1" 2>/dev/null
 }
 # nur mit einem Stand aus dem Netz — eine lokale Quelle (--quelle) ersetzt ic nie
