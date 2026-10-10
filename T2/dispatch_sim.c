@@ -34,7 +34,7 @@ static long tabelle_aufrufen(long num, unsigned long a1, unsigned long a2, unsig
 /* (a) Der Verteiler aus dem Handout — läuft im Lehr-Kernel im Kernel Mode. */
 static long syscall_dispatch(long num, unsigned long a1, unsigned long a2, unsigned long a3)
 {
-    if (num > NSYS)
+    if (num > NSYS)                     /* (a) */
         return -1;                      /* ungültige Nummer */
     return tabelle_aufrufen(num, a1, a2, a3);
 }
@@ -43,7 +43,7 @@ static long syscall_dispatch(long num, unsigned long a1, unsigned long a2, unsig
 /* (b) Darf sys_write n Bytes ab Adresse buf lesen?  1 = erlaubt, 0 = abgelehnt. */
 static int puffer_erlaubt(unsigned long buf, unsigned long n)
 {
-    /* TODO: Prüfung ergänzen — bisher wird jeder Puffer erlaubt. */
+    /* TODO (b): Prüfung ergänzen. */
     (void) buf;
     (void) n;
     return 1;
@@ -95,7 +95,7 @@ static long speicher_davor(unsigned long a1, unsigned long a2, unsigned long a3)
 {
     (void) a1; (void) a2; (void) a3;
     erreicht = 1;
-    printf("Sprung an die Adresse direkt vor der Tabelle (im Kernel Mode), "
+    printf("nimmt den Wert direkt vor der Tabelle als Sprungziel (im Kernel Mode) — "
            "dort liegt anderer Kernel-Speicher\n");
     return 0;
 }
@@ -104,7 +104,7 @@ static long speicher_dahinter(unsigned long a1, unsigned long a2, unsigned long 
 {
     (void) a1; (void) a2; (void) a3;
     erreicht = 1;
-    printf("Sprung an die Adresse direkt hinter der Tabelle (im Kernel Mode), "
+    printf("nimmt den Wert direkt hinter der Tabelle als Sprungziel (im Kernel Mode) — "
            "dort liegt anderer Kernel-Speicher\n");
     return 0;
 }
@@ -125,7 +125,7 @@ static long tabelle_aufrufen(long num, unsigned long a1, unsigned long a2, unsig
 
     if (i >= MODELL_EINTRAEGE) {
         erreicht = 1;
-        printf("Sprung an eine Adresse weit neben der Tabelle (im Kernel Mode), "
+        printf("nimmt einen Wert weit neben der Tabelle als Sprungziel (im Kernel Mode), "
                "im Modell nicht nachgebildet\n");
         return 0;
     }

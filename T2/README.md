@@ -5,4 +5,4 @@ make          # übersetzen: dispatch_sim (Lehr-Dispatcher als Modell), syscall_
 make test     # prüft dispatch_sim: Nummern und Puffer-Fälle
 ```
 
-Bearbeitet werden `dispatch_sim.c` (Teile a und b) und `syscall_probe.c` (Teil c, Stellen mit `TODO`). Die Fragen stehen auf dem Arbeitsblatt.
+Bearbeitet werden `dispatch_sim.c` (Teile a und b) und `syscall_probe.c` (Teil c, Stellen mit `(a)`, `(b)` und `TODO`). Die Fragen stehen auf dem Arbeitsblatt.

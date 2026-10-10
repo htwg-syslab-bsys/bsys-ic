@@ -17,6 +17,13 @@ check() {
     fi
 }
 
+# teil X → Teilergebnis des Abschnitts X seit der letzten Teilzeile
+p0=0; f0=0
+teil() {
+    echo "  Teil ($1): $((pass - p0)) von $((pass - p0 + fail - f0)) bestanden"
+    p0=$pass; f0=$fail
+}
+
 # nummer N → was der Aufruf mit Nummer N erreicht, zusammengefasst:
 #   „sys_… erreicht“, „abgelehnt“, sonst „angenommen (Sprung)“; Abbruch des Programms → Exit-Status
 nummer() {
@@ -46,6 +53,7 @@ check "Nummer 3"   "sys_exit erreicht"  "$(nummer 3)"
 check "Nummer 4"   "abgelehnt"          "$(nummer 4)"
 check "Nummer -1"  "abgelehnt"          "$(nummer -1)"
 check "Nummer 100" "abgelehnt"          "$(nummer 100)"
+teil "a"
 
 echo
 echo "Teil (b) — Puffer für sys_write"
@@ -57,6 +65,7 @@ check "Puffer-Fall 5: buf=0xfffffffffffffff8, n=0x10"   "abgelehnt" "$(puffer 0x
 check "Puffer-Fall 6: buf=0x7ffffffffffffff8, n=0x8"    "erlaubt"   "$(puffer 0x7ffffffffffffff8 0x8)"
 check "Puffer-Fall 7: buf=0x7fffffffffffffff, n=0x1"    "erlaubt"   "$(puffer 0x7fffffffffffffff 0x1)"
 check "Puffer-Fall 8: buf=0x7fffffffffffffff, n=0x2"    "abgelehnt" "$(puffer 0x7fffffffffffffff 0x2)"
+teil "b"
 
 echo
 echo "Teil (c) — syscall_probe"

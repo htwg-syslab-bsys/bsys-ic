@@ -1,6 +1,6 @@
 /* Aufgabe 2.1 (c) — Der misstrauische Kernel: Was antwortet der echte Linux-Kernel?
  *
- * Zwei Aufrufe, die ein Kernel ohne Prüfung gefährlich durchwinken würde. Beide Stellen
+ * Zwei Aufrufe mit ungültigen Werten. Beide Stellen
  * sind mit TODO markiert; zunächst stehen dort harmlose, gültige Werte.
  * Für jeden Aufruf gibt das Programm den Rückgabewert rc und errno aus.
  *
@@ -18,10 +18,10 @@ static const char *errname(int e)
 {
     switch (e) {
     case 0:      return "0";
-    case ENOSYS: return "ENOSYS";
+    case EBADF:  return "EBADF";
     case EFAULT: return "EFAULT";
     case EINVAL: return "EINVAL";
-    case EBADF:  return "EBADF";
+    case ENOSYS: return "ENOSYS";
     case EPERM:  return "EPERM";
     default:     return "anderer";
     }
