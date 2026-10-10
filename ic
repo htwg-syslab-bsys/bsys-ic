@@ -1,0 +1,258 @@
+#!/usr/bin/env bash
+# ic — holt die Dateien für den interaktiven Teil einer IC-Stunde nach ~/ic/T<n>/.
+#
+#   ic T2                     aktuellen Stand holen, ~/ic/T2/ anlegen oder auffrischen
+#   ic T2 --quelle DATEI      ohne Netz: tar.gz, zip oder Verzeichnis (Moodle, Stick)
+#   ic --hilfe | ic --version
+#
+# Eigene Änderungen werden nie überschrieben: ~/ic/.original/T<n>/ hält die zuletzt
+# gelieferte Fassung. Nur unveränderte Dateien werden ersetzt; zu einer geänderten Datei
+# kommt die neue Fassung als DATEI.neu daneben.
+set -euo pipefail
+
+# Das ganze Skript steht in { … }: bash liest es vollständig, bevor es läuft — so stört
+# es nicht, wenn sich ic unten selbst ersetzt.
+{
+
+IC_VERSION=1
+URL="https://codeload.github.com/htwg-syslab-bsys/bsys-ic/tar.gz/refs/heads/main"
+INSTALL_ZEILE="curl -fsSL https://raw.githubusercontent.com/htwg-syslab-bsys/bsys-ic/main/install.sh -o /tmp/ic-install.sh && sh /tmp/ic-install.sh"
+PROGRAMM="${IC_PROGRAMM:-/usr/local/bin/ic}"   # Installationsort (anderer Ort nur zum Testen)
+IC_DIR="$HOME/ic"
+
+fehler() { printf 'ic: %s\n' "$@" >&2; exit 1; }
+anzeige() { case "$1" in "$HOME"/*) printf '~/%s' "${1#"$HOME"/}" ;; *) printf '%s' "$1" ;; esac; }
+
+gebrauch() {
+    cat <<EOF
+Aufruf:  ic T2                  Dateien für Termin T2 nach ~/ic/T2/ holen (auch: ic t2, ic 2)
+         ic T2 --quelle DATEI   dasselbe ohne Netz, aus einer heruntergeladenen Datei
+                                (tar.gz oder zip) oder einem Verzeichnis
+         ic --version           Version anzeigen
+         ic --hilfe             diese Hilfe
+
+Eigene Änderungen in ~/ic bleiben immer erhalten. Liegt zu einer geänderten Datei eine
+neue Fassung vor, kommt sie als DATEI.neu daneben.
+EOF
+}
+
+# ---------------------------------------------------------------- Argumente
+quelle="${IC_QUELLE:-}"
+termin=
+hilfe=
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -h|--hilfe|--help) hilfe=1 ;;
+        --version)         echo "ic, Version $IC_VERSION (bsys-ic)"; exit 0 ;;
+        --quelle)          [ $# -ge 2 ] || fehler "--quelle braucht einen Pfad"
+                           quelle="$2"; shift ;;
+        --quelle=*)        quelle="${1#--quelle=}" ;;
+        -*)                fehler "unbekannte Option: $1" "Hilfe: ic --hilfe" ;;
+        *)                 [ -z "$termin" ] || fehler "nur ein Termin auf einmal" "Hilfe: ic --hilfe"
+                           termin="$1" ;;
+    esac
+    shift
+done
+[ -n "$termin" ] || hilfe=1
+
+if [ -n "$termin" ]; then
+    case "$termin" in
+        [Tt][0-9]*) nr="${termin#?}" ;;
+        [0-9]*)     nr="$termin" ;;
+        *)          nr=x ;;
+    esac
+    case "$nr" in
+        *[!0-9]*|'') fehler "„${termin}“ ist kein Termin (Beispiel: ic T2)" ;;
+    esac
+    nr=$((10#$nr))
+    termin="T$nr"
+fi
+
+# ---------------------------------------------------------------- Stand holen
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/ic.XXXXXX")
+trap 'rm -rf -- "$tmp"' EXIT
+
+ersatzweg() {
+    cat >&2 <<EOF
+Ersatzweg ohne Netz: die Datei aus Moodle (oder vom Stick) in den Container holen und
+    ic ${termin:-T2} --quelle PFAD/ZUR/DATEI
+aufrufen (tar.gz, zip oder entpacktes Verzeichnis).
+EOF
+}
+
+# entpacke DATEI ZIEL — tar (gz oder unkomprimiert) oder zip
+entpacke() {
+    mkdir -p "$2"
+    if [ "$(head -c 2 "$1")" = "PK" ]; then
+        command -v unzip >/dev/null 2>&1 || fehler "Für zip-Dateien fehlt unzip. Bitte die tar.gz-Datei verwenden."
+        unzip -q "$1" -d "$2" || fehler "$(anzeige "$1") lässt sich nicht entpacken."
+    else
+        tar -xf "$1" -C "$2" 2>/dev/null || fehler "$(anzeige "$1") lässt sich nicht entpacken (erwartet: tar.gz oder zip)."
+    fi
+}
+
+if [ -n "$quelle" ]; then
+    if [ -d "$quelle" ]; then
+        basis="$quelle"
+    elif [ -f "$quelle" ]; then
+        entpacke "$quelle" "$tmp/x"
+        basis="$tmp/x"
+    else
+        fehler "Quelle nicht gefunden: $quelle"
+    fi
+else
+    archiv="$tmp/stand.tar.gz"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsL --connect-timeout 10 --max-time 120 -o "$archiv" "$URL" || geladen=nein
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q -T 20 -O "$archiv" "$URL" || geladen=nein
+    else
+        echo "ic: weder curl noch wget vorhanden." >&2; ersatzweg; exit 1
+    fi
+    if [ "${geladen:-ja}" = nein ] || [ ! -s "$archiv" ]; then
+        if [ -n "$hilfe" ]; then
+            gebrauch; echo; echo "(Liste der Termine nicht verfügbar: kein Netz.)"; exit 0
+        fi
+        echo "ic: Der aktuelle Stand konnte nicht geladen werden (kein Netz?)." >&2
+        ersatzweg; exit 1
+    fi
+    entpacke "$archiv" "$tmp/x"
+    basis="$tmp/x"
+fi
+
+# Wurzel des Stands: das Verzeichnis mit den Termin-Ordnern T<n>/, höchstens zwei Ebenen tief
+# (GitHub-Archiv: bsys-ic-main/T2/, Ersatz-Datei: T2/ oder direkt der Ordner T2).
+hat_termine() { local d; for d in "$1"/T[0-9]*/; do [ -d "$d" ] && return 0; done; return 1; }
+wurzel=
+for kandidat in "$basis" "$basis"/*/ "$basis"/*/*/; do
+    [ -d "$kandidat" ] || continue
+    if hat_termine "$kandidat"; then wurzel="${kandidat%/}"; break; fi
+done
+if [ -z "$wurzel" ]; then
+    name=$(basename "$basis")
+    case "$name" in
+        T[0-9]*) mkdir -p "$tmp/w"; cp -R "$basis" "$tmp/w/$name"; wurzel="$tmp/w" ;;
+        *)       fehler "In der Quelle liegt kein Termin-Ordner (T2/ o. Ä.)." ;;
+    esac
+fi
+
+termine=$(for d in "$wurzel"/T[0-9]*/; do [ -d "$d" ] && basename "$d"; done | sort -V | tr '\n' ' ')
+
+if [ -n "$hilfe" ]; then
+    gebrauch
+    echo
+    echo "Verfügbare Termine: ${termine:-keine}"
+    exit 0
+fi
+
+src="$wurzel/$termin"
+[ -d "$src" ] || fehler "Für $termin liegt noch nichts vor. Verfügbar: ${termine:-keine}"
+
+# ---------------------------------------------------------------- ic selbst aktuell halten
+if [ -f "$wurzel/ic" ] && ! cmp -s "$wurzel/ic" "$PROGRAMM" 2>/dev/null; then
+    if [ -w "$(dirname "$PROGRAMM")" ] && install -m 755 "$wurzel/ic" "$PROGRAMM" 2>/dev/null; then
+        echo "ic wurde auf den neuen Stand gebracht ($PROGRAMM)."
+    elif command -v sudo >/dev/null 2>&1 && sudo -n install -m 755 "$wurzel/ic" "$PROGRAMM" 2>/dev/null; then
+        echo "ic wurde auf den neuen Stand gebracht ($PROGRAMM)."
+    else
+        echo "Hinweis: Es gibt eine neue Fassung von ic; $PROGRAMM ließ sich nicht ersetzen."
+        echo "         Einmalig ausführen:  $INSTALL_ZEILE"
+    fi
+fi
+
+# ---------------------------------------------------------------- Dateien übernehmen
+dst="$IC_DIR/$termin"
+orig="$IC_DIR/.original/$termin"
+
+# ordner_ok PFAD — PFAD fehlt oder ist ein echter Ordner (kein Link, keine Datei)
+ordner_ok() {
+    if [ -L "$1" ]; then fehler "$(anzeige "$1") ist ein symbolischer Link. Bitte entfernen oder umbenennen."; fi
+    if [ -e "$1" ] && [ ! -d "$1" ]; then fehler "$(anzeige "$1") ist eine Datei, kein Ordner. Bitte zuerst umbenennen."; fi
+}
+# keine_links ORDNER — darin darf kein symbolischer Link liegen (Schutz eigener Dateien)
+keine_links() {
+    local l
+    [ -d "$1" ] || return 0
+    find "$1" -type l -print > "$tmp/links" || fehler "$(anzeige "$1") lässt sich nicht durchsuchen."
+    l=$(head -n 1 "$tmp/links")
+    [ -z "$l" ] || fehler "$(anzeige "$l") ist ein symbolischer Link; ic arbeitet nur mit normalen Dateien. Bitte entfernen oder umbenennen."
+}
+ordner_ok "$IC_DIR"; ordner_ok "$IC_DIR/.original"; ordner_ok "$dst"; ordner_ok "$orig"
+keine_links "$src"; keine_links "$dst"; keine_links "$orig"
+
+liste="$tmp/liste"
+(cd "$src" && find . -type f -print0) > "$liste" || fehler "Die Quelle für $termin lässt sich nicht lesen."
+
+# aktion REL → neu | aktuell | aktualisiert | gelassen | daneben
+aktion() {
+    local s="$src/$1" z="$dst/$1" o="$orig/$1"
+    if [ -d "$z" ]; then fehler "$(anzeige "$z") ist ein Ordner; dort gehört die Datei $1 hin. Bitte zuerst umbenennen."; fi
+    if [ ! -e "$z" ]; then echo neu
+    elif cmp -s "$s" "$z"; then echo aktuell
+    elif [ -f "$o" ] && cmp -s "$z" "$o"; then echo aktualisiert
+    elif [ -f "$o" ] && cmp -s "$s" "$o"; then echo gelassen
+    else echo daneben
+    fi
+}
+
+# 1. Durchgang: nur prüfen — bricht ab, bevor irgendeine Datei angefasst wird
+while IFS= read -r -d '' rel; do
+    rel="${rel#./}"
+    a=$(aktion "$rel")
+    if [ "$a" = daneben ]; then
+        z="$dst/$rel.neu"
+        # belegt: Ordner, oder eine Datei, die weder die neue Fassung ist noch die zuletzt
+        # gelieferte (dann ist sie unangetastet von ic und darf ersetzt werden)
+        if [ -d "$z" ] || { [ -e "$z" ] && ! cmp -s "$src/$rel" "$z" \
+                                       && ! { [ -f "$orig/$rel" ] && cmp -s "$orig/$rel" "$z"; }; }; then
+            fehler "$(anzeige "$z") ist bereits belegt (eigene Änderung?). Bitte zuerst umbenennen, dann ic $termin erneut aufrufen."
+        fi
+    fi
+done < "$liste"
+
+mkdir -p "$dst"
+neu=; aktualisiert=; gelassen=; daneben=
+
+# uebernimm QUELLE ZIEL — kopieren, ausführbar bleibt ausführbar
+uebernimm() {
+    mkdir -p "$(dirname "$2")"
+    cp "$1" "$2"
+    if [ -x "$1" ]; then chmod +x "$2"; fi
+}
+
+# 2. Durchgang: übernehmen
+while IFS= read -r -d '' rel; do
+    rel="${rel#./}"
+    a=$(aktion "$rel")
+    case "$a" in
+        neu)          uebernimm "$src/$rel" "$dst/$rel"; neu="$neu $rel" ;;
+        aktualisiert) uebernimm "$src/$rel" "$dst/$rel"; aktualisiert="$aktualisiert $rel" ;;
+        gelassen)     gelassen="$gelassen $rel" ;;
+        daneben)      uebernimm "$src/$rel" "$dst/$rel.neu"; daneben="$daneben $rel.neu" ;;
+        *)            : ;;                                      # schon aktuell
+    esac
+done < "$liste"
+
+rm -rf -- "$orig"
+mkdir -p "$orig"
+cp -R "$src/." "$orig/"
+
+# ---------------------------------------------------------------- Zusammenfassung
+echo "$termin in $(anzeige "$dst"):"
+[ -n "$neu" ]          && echo "  neu:                      $neu"
+[ -n "$aktualisiert" ] && echo "  aktualisiert:             $aktualisiert"
+[ -n "$gelassen" ]     && echo "  eigene Änderung behalten: $gelassen"
+[ -n "$daneben" ]      && echo "  neue Fassung daneben:     $daneben" \
+                       && echo "  (eigene Datei unverändert; Unterschiede: diff DATEI DATEI.neu)"
+[ -z "$neu$aktualisiert$daneben" ] && echo "  nichts Neues, alles auf dem Stand der Quelle"
+if [ -f "$dst/README.md" ]; then
+    echo
+    grep -v -e '^#' -e '^```' -e '^[[:space:]]*$' "$dst/README.md" | sed 's/^/  /' || true
+fi
+echo
+case "$dst" in
+    "$HOME"/*) printf 'Weiter mit:  cd ~/%q\n' "${dst#"$HOME"/}" ;;
+    *)         printf 'Weiter mit:  cd %q\n' "$dst" ;;
+esac
+exit 0
+}
