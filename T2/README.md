@@ -1,7 +1,7 @@
 # T2 — Aufgabe 2.1: Der misstrauische Kernel
 
 ```
-make          # übersetzen: dispatch_sim (Lehr-Dispatcher als Modell), syscall_probe (echtes Linux)
+make          # übersetzen: dispatch_sim (Dispatcher als Modell), syscall_probe (echtes Linux)
 make test     # prüft dispatch_sim: Nummern und Puffer-Fälle
 ```
 
