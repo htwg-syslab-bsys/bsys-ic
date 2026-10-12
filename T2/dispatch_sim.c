@@ -1,6 +1,6 @@
-/* Aufgabe 2.1 — Der misstrauische Kernel: der Lehr-Dispatcher aus dem Handout als Modell.
+/* Aufgabe 2.1 — Der misstrauische Kernel: der Dispatcher aus dem Handout als Modell.
  *
- * Das Programm läuft im User Mode und spielt nach, was der Lehr-Kernel nach der
+ * Das Programm läuft im User Mode und spielt nach, was der fiktive Kernel nach der
  * Trap-Instruktion tut: Es prüft die Nummer, springt über die Tabelle und ruft im Fall
  * von sys_write die Pufferprüfung auf.
  *
@@ -27,11 +27,11 @@ _Static_assert(sizeof(unsigned long) == 8, "Das Modell setzt 64-Bit-Adressen vor
 typedef long (*sysfn)(unsigned long a1, unsigned long a2, unsigned long a3);
 
 /* Technik des Modells (unten definiert): springt über die Tabelle wie
- * syscall_table[num](a1, a2, a3) im Lehr-Kernel. */
+ * syscall_table[num](a1, a2, a3) im fiktiven Kernel. */
 static long tabelle_aufrufen(long num, unsigned long a1, unsigned long a2, unsigned long a3);
 
 
-/* (a) Der Verteiler aus dem Handout — läuft im Lehr-Kernel im Kernel Mode. */
+/* (a) Der Verteiler aus dem Handout — läuft im fiktiven Kernel im Kernel Mode. */
 static long syscall_dispatch(long num, unsigned long a1, unsigned long a2, unsigned long a3)
 {
     if (num > NSYS)                     /* (a) */
