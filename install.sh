@@ -33,4 +33,4 @@ else
 fi
 
 "$ZIEL" --version
-echo "Fertig. Aufruf z. B.:  ic T2"
+echo "Fertig. Aufruf z. B.:  ic T3"

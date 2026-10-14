@@ -1,4 +1,4 @@
-# T2 — Aufgabe 2.1: Der misstrauische Kernel
+# T3 — Der misstrauische Kernel
 
 ```
 make          # übersetzen: dispatch_sim (Dispatcher als Modell), syscall_probe (echtes Linux)
