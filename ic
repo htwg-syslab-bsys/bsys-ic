@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ic — holt die Dateien für den interaktiven Teil einer IC-Stunde nach ~/ic/T<n>/.
 #
-#   ic T2                     aktuellen Stand holen, ~/ic/T2/ anlegen oder auffrischen
-#   ic T2 --quelle DATEI      ohne Netz: tar.gz, zip oder Verzeichnis (Moodle, Stick)
+#   ic T3                     aktuellen Stand holen, ~/ic/T3/ anlegen oder auffrischen
+#   ic T3 --quelle DATEI      ohne Netz: tar.gz, zip oder Verzeichnis (Moodle, Stick)
 #   ic --hilfe | ic --version
 #
 # Eigene Änderungen werden nie überschrieben: ~/ic/.original/T<n>/ hält die zuletzt
@@ -29,8 +29,8 @@ anzeige() { case "$1" in "$HOME"/*) printf '~/%s' "${1#"$HOME"/}" ;; *) printf '
 
 gebrauch() {
     cat <<EOF
-Aufruf:  ic T2                  Dateien für Termin T2 nach ~/ic/T2/ holen (auch: ic t2, ic 2)
-         ic T2 --quelle DATEI   dasselbe ohne Netz, aus einer heruntergeladenen Datei
+Aufruf:  ic T3                  Dateien für Termin T3 nach ~/ic/T3/ holen (auch: ic t3, ic 3)
+         ic T3 --quelle DATEI   dasselbe ohne Netz, aus einer heruntergeladenen Datei
                                 (tar.gz oder zip) oder einem Verzeichnis
          ic --version           Version anzeigen
          ic --hilfe             diese Hilfe
@@ -66,7 +66,7 @@ if [ -n "$termin" ]; then
         *)          nr=x ;;
     esac
     case "$nr" in
-        *[!0-9]*|'') fehler "„${termin}“ ist kein Termin (Beispiel: ic T2)" ;;
+        *[!0-9]*|'') fehler "„${termin}“ ist kein Termin (Beispiel: ic T3)" ;;
     esac
     nr=$((10#$nr))
     termin="T$nr"
@@ -79,7 +79,7 @@ trap 'rm -rf -- "$tmp"' EXIT
 ersatzweg() {
     cat >&2 <<EOF
 Ersatzweg ohne Netz: die Datei aus Moodle (oder vom Stick) in den Container holen und
-    ic ${termin:-T2} --quelle PFAD/ZUR/DATEI
+    ic ${termin:-T3} --quelle PFAD/ZUR/DATEI
 aufrufen (tar.gz, zip oder entpacktes Verzeichnis).
 EOF
 }
@@ -125,7 +125,7 @@ else
 fi
 
 # Wurzel des Stands: das Verzeichnis mit den Termin-Ordnern T<n>/, höchstens zwei Ebenen tief
-# (GitHub-Archiv: bsys-ic-main/T2/, Ersatz-Datei: T2/ oder direkt der Ordner T2).
+# (GitHub-Archiv: bsys-ic-main/T3/, Ersatz-Datei: T3/ oder direkt der Ordner T3).
 hat_termine() { local d; for d in "$1"/T[0-9]*/; do [ -d "$d" ] && return 0; done; return 1; }
 wurzel=
 for kandidat in "$basis" "$basis"/*/ "$basis"/*/*/; do
@@ -136,7 +136,7 @@ if [ -z "$wurzel" ]; then
     name=$(basename "$basis")
     case "$name" in
         T[0-9]*) mkdir -p "$tmp/w"; cp -R "$basis" "$tmp/w/$name"; wurzel="$tmp/w" ;;
-        *)       fehler "In der Quelle liegt kein Termin-Ordner (T2/ o. Ä.)." ;;
+        *)       fehler "In der Quelle liegt kein Termin-Ordner (T3/ o. Ä.)." ;;
     esac
 fi
 
